@@ -1,0 +1,40 @@
+@page "/canvas"
+@using Blazor.Extensions.Canvas.Canvas2D
+@using Blazor.Extensions
+ 
+<h1>Canvas</h1>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-2"></div>
+        <div class="col-8">
+            <BECanvas Width="@CanvasWidth" Height="@CanvasHeight" @ref="_canvasReference"></BECanvas>
+        </div>
+        <div class="col-2"></div>
+    </div>
+</div>
+
+@code
+{
+    const int CanvasWidth = 800;
+    const int CanvasHeight = 600;
+    
+    private Canvas2DContext _context;
+    private BECanvasComponent _canvasReference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _context = await _canvasReference.CreateCanvas2DAsync();
+
+        await _context.RectAsync(0, 0, CanvasWidth, CanvasHeight);
+
+        await _context.StrokeAsync();
+
+    // await _context.SetFillStyleAsync("green");
+    //
+    // await _context.FillRectAsync(10, 100, 100, 100);
+    //
+    // await _context.SetFontAsync("48px serif");
+    // await _context.StrokeTextAsync("Hello Blazor!!!", 10, 100);
+    }    
+}
