@@ -1,10 +1,28 @@
 @inherits CanvasBase
 
-@page "/canvas"
+@page "/z-test"
 
 <h1>Z Test</h1>
 
 <div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <form>
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="criticalValue">Critical Value</label>
+                        <input type="text"  class="form-control" id="criticalValue" placeholder="Critical Value" @bind="CriticalValue"/>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="zValue">Z Value</label>
+                        <input type="text"  class="form-control" id="zValue" placeholder="Z Value" @bind="ZValue"/>
+                    </div>
+                </div>
+                <input type="button" class="btn btn-primary" value="Perform Test" @onclick="PerfomTestAsync" />
+            </form>
+
+        </div>
+    </div>
     <div class="row">
         <div class="col-2"></div>
         <div class="col-8">
@@ -16,6 +34,8 @@
         <div class="col">
             <p>Points: @PointsStr</p>
             <p>Canvas Points: @ConvertedPointsStr</p>
+            <p>Critical value: @CriticalValue</p>
+            <p>Z value: @ZValue</p>
         </div>
     </div>
 </div>

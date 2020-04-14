@@ -32,6 +32,9 @@ namespace GaussBell.Pages
         protected string PointsStr;
         protected string ConvertedPointsStr;
 
+        protected double CriticalValue;
+        protected double ZValue;
+
         protected override void OnInitialized()
         {
             Points = ChartPointService.BuildChartPoints(MinX, TestPoints);
@@ -42,14 +45,23 @@ namespace GaussBell.Pages
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             _context = await _canvasReference.CreateCanvas2DAsync();
+        }
 
-            await AddCanvasBackGroundAsync(_context);
-            await AddCanvasGridXAsync(_context);
-            await AddCanvasGridYAsync(_context);
-            await AddXValuesLabelsAsync(_context);
+        protected async Task PerfomTestAsync()
+        {
+            await DrawChartAsync(_context);
+            await PlotCriticPointAsync(_context, CriticalValue);
+            await PlotZValueAsync(_context, CriticalValue, ZValue);
+        }
 
-            await PlotGaussPointsAsync(_context);
-            await PlotCriticPointAsync(_context, 1.65);
+        private async Task DrawChartAsync(Canvas2DContext context)
+        {
+            await AddCanvasBackGroundAsync(context);
+            await AddCanvasGridXAsync(context);
+            await AddCanvasGridYAsync(context);
+            await AddXValuesLabelsAsync(context);
+
+            await PlotGaussPointsAsync(context);
         }
 
         private async Task AddCanvasBackGroundAsync(Canvas2DContext context)
@@ -136,20 +148,42 @@ namespace GaussBell.Pages
             // move to the first point
             await context.MoveToAsync(UnitSizeX, CanvasHeight - UnitSizeY);
             var convertedPoints = ConvertToCanvasCoordinate(Points);
-            var array = ConvertToCanvasCoordinate(Points).ToArray();
+            var pointArray = ConvertToCanvasCoordinate(Points).ToArray();
 
             var i = 1;
-            for (i = 1; i < array.Length - 2; i ++)
+            for (i = 1; i < pointArray.Length - 2; i ++)
             {
-                var xc = (array[i].X + array[i + 1].X) / 2;
-                var yc = (array[i].Y + array[i + 1].Y) / 2;
+                var xc = (pointArray[i].X + pointArray[i + 1].X) / 2;
+                var yc = (pointArray[i].Y + pointArray[i + 1].Y) / 2;
                 
-                await context.QuadraticCurveToAsync(array[i].X, array[i].Y, xc, yc);
+                await context.QuadraticCurveToAsync(pointArray[i].X, pointArray[i].Y, xc, yc);
             }
 
             // curve through the last two points
-            await context.QuadraticCurveToAsync(array[i].X, array[i].Y, array[i+1].X, array[i+1].Y);            
+            await context.QuadraticCurveToAsync(pointArray[i].X, pointArray[i].Y, pointArray[i+1].X, pointArray[i+1].Y);            
 
+            await context.StrokeAsync();
+        }
+
+        private async Task PlotGaussPointsOldAsync(Canvas2DContext context)
+        {
+            await context.BeginPathAsync();
+            await context.SetStrokeStyleAsync("#121e5e");
+
+            var stack = new Stack<ChartPoint>();
+            await context.MoveToAsync(UnitSizeX, CanvasHeight - UnitSizeY);
+            var convertedPoints = ConvertToCanvasCoordinate(Points);
+
+            foreach(var point in convertedPoints)   
+            {
+                await context.LineToAsync(point.X, point.Y);
+            }
+
+            await context.ClosePathAsync();
+            await context.StrokeAsync();
+
+            await context.MoveToAsync(UnitSizeX, CanvasHeight - UnitSizeY);
+            await context.QuadraticCurveToAsync(CanvasWidth / 2, 100, CanvasWidth - UnitSizeX, CanvasHeight - UnitSizeY);
             await context.StrokeAsync();
         }
 
@@ -160,23 +194,70 @@ namespace GaussBell.Pages
             int y = ConvertValueToPixelY(0.4);
 
             await context.BeginPathAsync();
-            await context.SetStrokeStyleAsync("#3a0647");
 
             await context.MoveToAsync(minusX, (CanvasHeight - UnitSizeY));
             await context.LineToAsync(minusX, y);
 
-            await context.SetStrokeStyleAsync("#3a0647");
             await context.MoveToAsync(x, (CanvasHeight - UnitSizeY));
             await context.LineToAsync(x, y);
 
+            await context.ClosePathAsync();
+            await context.SetStrokeStyleAsync("#3a0647");
+            await context.StrokeAsync();
+
+            await WriteCritialValues(context, value);
+        }
+
+        private async Task WriteCritialValues(Canvas2DContext context, double value)
+        {            
+            double minusValue = value * -1;
+            int x = ConvertValueToPixelX(value);
+            int minusX = ConvertValueToPixelX(-1 * value);
+
+            await context.BeginPathAsync();
             await context.SetFontAsync("12px Arial");
             await context.SetFillStyleAsync("#000000");
 
             await context.FillTextAsync(value.ToString(), x, ConvertValueToPixelY(0.4) - 12);
-            await context.FillTextAsync((-1 * value).ToString(), minusX, ConvertValueToPixelY(0.4) - 12);
-
+            await context.FillTextAsync(minusValue.ToString(), minusX, ConvertValueToPixelY(0.4) - 12);
             await context.ClosePathAsync();
             await context.StrokeAsync();
+        }
+
+        private async Task PlotZValueAsync(Canvas2DContext context, double criticalValue, double zValue)
+        {            
+            int x = ConvertValueToPixelX(zValue);
+            int y = ConvertValueToPixelY(0.4);
+
+            var lineColor = ((zValue > criticalValue * -1) && (zValue < criticalValue))?"#009688":"#d13438";
+
+            var valuePrefix = "";
+            if (zValue > 3.6 || zValue < -3.6)
+            {
+                valuePrefix = "...";
+                var newXValue = zValue >= 0?3.6:-3.6;
+                x = ConvertValueToPixelX(newXValue);
+
+            }
+ 
+            await context.BeginPathAsync();
+
+            await context.MoveToAsync(x, (CanvasHeight - UnitSizeY));
+            await context.LineToAsync(x, y);
+
+            await context.ClosePathAsync();
+            await context.SetStrokeStyleAsync(lineColor);
+            await context.StrokeAsync();
+
+            // Write z value
+            await context.BeginPathAsync();
+
+            await context.SetFontAsync("12px Arial");
+            await context.SetFillStyleAsync("#000000");
+            await context.FillTextAsync(valuePrefix + zValue.ToString(), x, ConvertValueToPixelY(0.4) - 12);
+
+            await context.ClosePathAsync();
+            await context.StrokeAsync();           
         }
     }
 }
