@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Components;
 using GaussBell.Services;
 using System.Collections.Generic;
 using GaussBell.Services.Domain;
-using System;
 using System.Linq;
+using GaussBell.Pages.Model;
 
 namespace GaussBell.Pages
 {
@@ -19,9 +19,14 @@ namespace GaussBell.Pages
         protected const int UnitNumbersY = 6;
         protected const int UnitSizeX = CanvasWidth / UnitNumbersX;
         protected const int UnitSizeY = CanvasHeight / UnitNumbersY;
-
         protected const int MinX = -4;
         protected const int TestPoints = 9;
+
+        private const string CanvasBackgroundColor = "#d6dbd7";
+        private const string CanvasGridLinesColor = "#fdfdfd";
+        private const string ChartXValuesColor = "#000000";
+        private const string GaussCurveColor = "#121e5e";
+        private const string CriticalValueLinesColor = "#3a0647";
 
         protected BECanvasComponent _canvasReference;
         
@@ -29,17 +34,11 @@ namespace GaussBell.Pages
 
         protected IEnumerable<ChartPoint> Points;
 
-        protected string PointsStr;
-        protected string ConvertedPointsStr;
-
-        protected double CriticalValue;
-        protected double ZValue;
+        protected CanvasModel canvasModel = new CanvasModel();
 
         protected override void OnInitialized()
         {
             Points = ChartPointService.BuildChartPoints(MinX, TestPoints);
-            PointsStr = ChartPointService.PointsToString(Points);
-            ConvertedPointsStr = ChartPointService.PointsToString(ConvertToCanvasCoordinate(Points));
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -50,8 +49,8 @@ namespace GaussBell.Pages
         protected async Task PerfomTestAsync()
         {
             await DrawChartAsync(_context);
-            await PlotCriticPointAsync(_context, CriticalValue);
-            await PlotZValueAsync(_context, CriticalValue, ZValue);
+            await PlotCriticalValuesAsync(_context, canvasModel.CriticalValue);
+            await PlotZValueAsync(_context, canvasModel.CriticalValue, canvasModel.ZValue);
         }
 
         private async Task DrawChartAsync(Canvas2DContext context)
@@ -66,9 +65,11 @@ namespace GaussBell.Pages
 
         private async Task AddCanvasBackGroundAsync(Canvas2DContext context)
         {
+            await context.SetStrokeStyleAsync("#000000");
+            await context.SetLineWidthAsync(1);
             await context.RectAsync(0, 0, CanvasWidth, CanvasHeight);
 
-            await context.SetFillStyleAsync("#d6dbd7");
+            await context.SetFillStyleAsync(CanvasBackgroundColor);
             await context.FillRectAsync(UnitSizeX, UnitSizeY, CanvasWidth - UnitSizeX * 2, CanvasHeight - UnitSizeY * 2);
             await context.RectAsync(UnitSizeX, UnitSizeY, CanvasWidth - UnitSizeX * 2, CanvasHeight - UnitSizeY * 2);
 
@@ -80,7 +81,7 @@ namespace GaussBell.Pages
             await context.SetLineWidthAsync(1);
 
             await context.BeginPathAsync();
-            await context.SetStrokeStyleAsync("#fdfdfd");
+            await context.SetStrokeStyleAsync(CanvasGridLinesColor);
 
             for (int i=1;i<UnitNumbersX-2;i++)
             {
@@ -97,7 +98,7 @@ namespace GaussBell.Pages
             await context.SetLineWidthAsync(1);
 
             await context.BeginPathAsync();
-            await context.SetStrokeStyleAsync("#fdfdfd");
+            await context.SetStrokeStyleAsync(CanvasGridLinesColor);
 
             for (var i=1;i<UnitNumbersY-2;i++)
             {
@@ -113,7 +114,7 @@ namespace GaussBell.Pages
         {
             await context.BeginPathAsync();
             await context.SetFontAsync("12px Arial");
-            await context.SetFillStyleAsync("#000000");
+            await context.SetFillStyleAsync(ChartXValuesColor);
 
             foreach(var point in Points)
             {
@@ -143,11 +144,10 @@ namespace GaussBell.Pages
         private async Task PlotGaussPointsAsync(Canvas2DContext context)
         {
             await context.BeginPathAsync();
-            await context.SetStrokeStyleAsync("#121e5e");
+            await context.SetStrokeStyleAsync(GaussCurveColor);
 
             // move to the first point
             await context.MoveToAsync(UnitSizeX, CanvasHeight - UnitSizeY);
-            var convertedPoints = ConvertToCanvasCoordinate(Points);
             var pointArray = ConvertToCanvasCoordinate(Points).ToArray();
 
             var i = 1;
@@ -162,38 +162,18 @@ namespace GaussBell.Pages
             // curve through the last two points
             await context.QuadraticCurveToAsync(pointArray[i].X, pointArray[i].Y, pointArray[i+1].X, pointArray[i+1].Y);            
 
-            await context.StrokeAsync();
-        }
-
-        private async Task PlotGaussPointsOldAsync(Canvas2DContext context)
-        {
-            await context.BeginPathAsync();
-            await context.SetStrokeStyleAsync("#121e5e");
-
-            var stack = new Stack<ChartPoint>();
-            await context.MoveToAsync(UnitSizeX, CanvasHeight - UnitSizeY);
-            var convertedPoints = ConvertToCanvasCoordinate(Points);
-
-            foreach(var point in convertedPoints)   
-            {
-                await context.LineToAsync(point.X, point.Y);
-            }
-
             await context.ClosePathAsync();
             await context.StrokeAsync();
-
-            await context.MoveToAsync(UnitSizeX, CanvasHeight - UnitSizeY);
-            await context.QuadraticCurveToAsync(CanvasWidth / 2, 100, CanvasWidth - UnitSizeX, CanvasHeight - UnitSizeY);
-            await context.StrokeAsync();
         }
 
-        private async Task PlotCriticPointAsync(Canvas2DContext context, double value)
+        private async Task PlotCriticalValuesAsync(Canvas2DContext context, double value)
         {
             int x = ConvertValueToPixelX(value);
             int minusX = ConvertValueToPixelX(-1 * value);
             int y = ConvertValueToPixelY(0.4);
 
             await context.BeginPathAsync();
+            await context.SetStrokeStyleAsync(CriticalValueLinesColor);
 
             await context.MoveToAsync(minusX, (CanvasHeight - UnitSizeY));
             await context.LineToAsync(minusX, y);
@@ -202,13 +182,12 @@ namespace GaussBell.Pages
             await context.LineToAsync(x, y);
 
             await context.ClosePathAsync();
-            await context.SetStrokeStyleAsync("#3a0647");
             await context.StrokeAsync();
 
-            await WriteCritialValues(context, value);
+            await WriteCritialValueLabels(context, value);
         }
 
-        private async Task WriteCritialValues(Canvas2DContext context, double value)
+        private async Task WriteCritialValueLabels(Canvas2DContext context, double value)
         {            
             double minusValue = value * -1;
             int x = ConvertValueToPixelX(value);
@@ -241,21 +220,17 @@ namespace GaussBell.Pages
             }
  
             await context.BeginPathAsync();
-
             await context.MoveToAsync(x, (CanvasHeight - UnitSizeY));
             await context.LineToAsync(x, y);
-
             await context.ClosePathAsync();
             await context.SetStrokeStyleAsync(lineColor);
             await context.StrokeAsync();
 
             // Write z value
             await context.BeginPathAsync();
-
             await context.SetFontAsync("12px Arial");
             await context.SetFillStyleAsync("#000000");
             await context.FillTextAsync(valuePrefix + zValue.ToString(), x, ConvertValueToPixelY(0.4) - 12);
-
             await context.ClosePathAsync();
             await context.StrokeAsync();           
         }

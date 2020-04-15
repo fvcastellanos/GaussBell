@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using GaussBell.Data;
 
 namespace GaussBell
 {
@@ -22,9 +21,6 @@ namespace GaussBell
         {
             services.AddRazorPages();
             services.AddServerSideBlazor();
-            services.AddSingleton<WeatherForecastService>();
-
-            services.AddSingleton<CounterDao>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
