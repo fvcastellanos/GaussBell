@@ -230,7 +230,7 @@ namespace GaussBell.Pages
             await context.BeginPathAsync();
             await context.SetFontAsync("12px Arial");
             await context.SetFillStyleAsync("#000000");
-            await context.FillTextAsync(valuePrefix + zValue.ToString(), x, ConvertValueToPixelY(0.4) - 12);
+            await context.FillTextAsync(valuePrefix + zValue.ToString(), x - 28, ConvertValueToPixelY(0.3) - 12);
             await context.ClosePathAsync();
             await context.StrokeAsync();           
         }
